@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+<script type="text/javascript">
+
+function resolve_color(color){
+    // return an array containing R, G and B values
+    if(color === 'transparent')// IE (6 and ?)
+        color = '#FFF';
+    var r,g,b;
+    var hex_color_pcre = new RegExp("^#[0-9a-f]{3}([0-9a-f]{3})?$",'gi');
+    var rgb_color_pcre = new RegExp("rgb\\(\\s*((?:[0-2]?[0-9])?[0-9])\\s*,\\s*((?:[0-2]?[0-9])?[0-9])\\s*,\\s*((?:[0-2]?[0-9])?[0-9])\\s*\\)$",'gi');
+    var rgb_percent_color_pcre = new RegExp("rgb\\(\\s*((?:[0-1]?[0-9])?[0-9])%\\s*,\\s*((?:[0-1]?[0-9])?[0-9])%\\s*,\\s*((?:[0-1]?[0-9])?[0-9])%\\s*\\)$",'gi');
+    if(color.match(hex_color_pcre)){
+        if(color.length == 4){
+            r  = color.charAt(1)+""+color.charAt(1);
+            g  = color.charAt(2)+""+color.charAt(2);
+            b  = color.charAt(3)+""+color.charAt(3);
+        }
+        else{
+            r  = color.charAt(1)+""+color.charAt(2);
+            g  = color.charAt(3)+""+color.charAt(4);
+            b  = color.charAt(5)+""+color.charAt(6);
+        }
+        r = h2d(r);
+        g = h2d(g);
+        b = h2d(b);
+    }
+    else if(color.match(rgb_color_pcre)){
+        r = RegExp.$1;
+        g = RegExp.$2;
+        b = RegExp.$3;
+    }
+    else if(color.match(rgb_percent_color_pcre)){
+        r = parseInt((RegExp.$1)*2.55);
+        g = parseInt((RegExp.$2)*2.55);
+        b = parseInt((RegExp.$3)*2.55);
+    }
+    else
+        return false;
+
+    var returned =[];
+    returned['red'] = r;
+    returned['green'] = g;
+    returned['blue'] = b;
+    return returned;
+}
+
+function h2d(h) {
+    // hex to decimal
+    return parseInt(h,16);
+} 
+
+function getTileIndex(base, tile_id)
+{
+	return base + 16 * tile_id;
+}
+
+function photoToImageData(savedata, ctx, photo_index)
+{
+	// First photo at 0x2000, 0x1000 per photo
+	var offset = 0x2000 + photo_index * 0x1000;
+	var x,y,i,p,X;
+	var w = 128;
+	var h = 112;
+	var w_tiles = w >> 3;
+	var h_tiles = h >> 3;
+	var imagedata = ctx.createImageData(w,h);
+	var val;
+	var tdata;
+	var palette = [];
+
+	for (i=0; i<4; i++) {
+		palette[i] = resolve_color(document.getElementById("color"+i).value);
+	}
+
+	for (y = 0; y<h_tiles*8; y++) {
+		for (x = 0; x < w_tiles; x++) {
+			tdata = getTileIndex(offset + 0, (y>>3) * 0x10 + x);
+
+			for (i=0; i<8; i++) {
+				p = tdata + ((y&7) * 2);
+
+				val = 0;
+				if ((savedata[p] & (0x80 >> i))!=0) {
+					val += 1;
+				}
+				if ((savedata[p+1] & (0x80 >> i))!=0) {
+					val += 2;
+				}
+
+				X = x * 8 + i;
+				imagedata.data[(y*w*4)+(X*4)+0] = palette[val]['red'];
+				imagedata.data[(y*w*4)+(X*4)+1] = palette[val]['green'];
+				imagedata.data[(y*w*4)+(X*4)+2] = palette[val]['blue'];
+				imagedata.data[(y*w*4)+(X*4)+3] = 0xff;
+			}
+		}
+	}
+
+	return imagedata;
+}
+
+function setPreset(id)
+{
+	var colors = [ "#ffffff", "#cccccc", "#666666", "#000000" ];
+	var i;
+
+	switch(id)
+	{
+		case 1:
+			colors = [ "#9bbc0f", "#8bac0f", "#306230", "#0f380f" ];
+			break;
+		case 2:
+			colors = [ "#ffffff", "#ffc000", "#a06000", "#000000" ];
+
+	}
+
+	for (i=0; i<4; i++) {
+		document.getElementById('color'+i).value = colors[i];
+	}
+
+	loadSaveFile();
+}
+
+function displayContents(savedata)
+{
+
+	var photo;
+
+	for (photo = 0; photo < 30; photo++) {
+		var canvas = document.getElementById("photo" + photo);
+		var ctx = canvas.getContext("2d");
+		imgdata = photoToImageData(new Uint8Array(savedata), ctx, photo);
+		ctx.putImageData(imgdata,0,0);
+	}
+}
+
+function loadSaveFile()
+{
+	file = document.getElementById('savefile').files[0];
+
+	var reader = new FileReader();
+
+	reader.onload = function(e) {
+		var contents = e.target.result;
+		displayContents(contents)
+	};
+
+	reader.readAsArrayBuffer(file);
+}
+
+</script>
+
+</head>
+<body>
+
+<h1>Pocket Camera image viewer</h1>
+
+This is a simple html5 + javascript Gameboy Camera (also known as Pocket Camera) photo
+viewer/extraction tool that runs in a web browser.
+
+<h2>Load save file</h2>
+
+
+<input type="file" id="savefile" onchange="loadSaveFile()">
+<button onclick="loadSaveFile()">(re)Load</button>
+
+<h2>Tweaks</h2>
+<b>Intensity</b><Br>
+Color 1: <input type="text" id="color0" value="#ffffff" onchange="loadSaveFile()"><br>
+Color 2: <input type="text" id="color1" value="#cccccc" onchange="loadSaveFile()"><br>
+Color 3: <input type="text" id="color2" value="#666666" onchange="loadSaveFile()"><br>
+Color 4: <input type="text" id="color3" value="#000000" onchange="loadSaveFile()"><br>
+<br>
+<b>Presets</b>
+<input type="button" onClick="setPreset(0)" value="Black and White">
+<input type="button" onClick="setPreset(1)" value="Gameboy">
+<input type="button" onClick="setPreset(2)" value="Gameboy player">
+
+
+<h2>Photos</h2>
+
+To save a particular photo, right-click and select Save Image As... (or equivalent)<br>
+<br>
+
+<canvas id="photo0" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo1" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo2" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo3" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo4" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo5" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo6" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo7" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo8" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo9" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo10" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo11" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo12" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo13" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo14" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo15" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo16" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo17" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo18" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo19" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo20" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo21" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo22" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo23" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo24" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo25" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo26" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo27" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo28" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+<canvas id="photo29" width="128" height="112">
+Fallback content, in case the browser does not support Canvas.
+</canvas>
+
+
+</body>
+</html>

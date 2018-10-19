@@ -1,0 +1,8 @@
+*.o
+*.map
+*.elf
+*.swp
+*.png
+*.sav
+*.SAV
+gbcam2png
