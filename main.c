@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Nothing to do. Try -h\n");
 		return 1;
 	}
-	if (arg_use_small_photos && arg_use_small_photos) {
+	if (arg_use_small_photos && arg_use_gameface) {
 		fprintf(stderr, "-s and -g cannot be used together. The gameface photo does not have a small version.\n");
 		return 1;
 	}
