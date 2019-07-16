@@ -28,6 +28,7 @@ without using the command-line and without compiling anything.
 
 ### Help (-h)
 
+```
  Options:
 	-h              Display this help text
 	-i index        Source image index (first image is 0). Default: 0
@@ -39,7 +40,7 @@ without using the command-line and without compiling anything.
 	-a              Also export deleted photos
 	-s              Export/display small photos (32x32) intead of large photos (128x112)
 	-v              Be verbose
-
+```
 
 ### Examples
 
